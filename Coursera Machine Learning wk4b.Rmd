@@ -1,0 +1,119 @@
+---
+title: "Coursera Machine Learning Assignment"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load the source data and packages needed 
+```{r}
+library(caret)
+library(rpart)
+library(AppliedPredictiveModeling)
+library(ElemStatLearn)
+library(pgmm)
+library(ggplot2)
+
+training<-read.csv("~/pml-training.csv")
+
+head(training)
+tail(training)
+str(training)
+str(training$classe)
+
+```
+Convert the response variable to a factor 
+
+```{r}
+training$classe<-as.factor(training$classe)
+```
+Check there are no missings in the response. 
+```{r}
+table(training$classe)
+```
+Review the dataset by eye 
+```{r}
+
+fix(training)
+```
+
+By eye you can see columns mainly populated with NA - Kurtosis, Skew. 
+Dataset instructions were clear on the sensors - find the variables needed and this was done by reviewing the 
+output of fix. 
+
+```{r}
+traincut<-subset(training,select=c(roll_belt:total_accel_belt,
+                               gyros_belt_x:total_accel_arm,
+                               gyros_arm_x:magnet_arm_z,
+                               roll_dumbbell:yaw_dumbbell,
+                               total_accel_dumbbell,
+                               gyros_dumbbell_x:yaw_forearm,
+                               total_accel_forearm,
+                               gyros_forearm_x:classe
+                               
+                               ))
+
+```
+Model using random forest rather than a probably overfitted classification tree
+USe 10 fold cross validation. Subset our training data though to assess our fit
+
+```{r}
+ctrl <- trainControl(method="cv",number=10,verboseIter = TRUE)
+set.seed(13208)
+
+inTrain <- createDataPartition(y = traincut$classe, p = .80, list = FALSE)
+traincutp<-traincut[inTrain,]
+traincutt<-traincut[-inTrain,]
+
+```
+Fit a Random forest - this ws the code used
+model4<-train(classe~.,data=traincutp,method="rf",trControl = ctrl)
+pred4<-predict(model4,traincutp)
+
+
+Assess the fit on the training data (subset)
+```{r}
+table(traincutp$classe,pred4)
+```
+This looks pretty good - now try the accuracy on the  hold out sample
+```{r}
+pred4t<-predict(model4,traincutt)
+table(traincutt$classe,pred4t)
+
+```
+
+Now lets test accuracy on the Training and Test dataset. 
+Training data
+```{r}
+confusionMatrix(pred4,traincutp$classe)
+```
+A perfect fit . ..potential overfitting but lets see . . 
+
+```{r}
+confusionMatrix(pred4t,traincutt$classe)
+```
+That is an acceptable level of accuracy >99% and suggests overfitting is not an issue. 
+
+Now lets gather the Test data and predict the values. 
+
+
+```{r}
+testing<-read.csv("~/pml-testing.csv")
+```
+Fit the model
+
+```{r}
+Prediction<-predict(model4,testing)
+testing$Prediction<-Prediction
+```
+Submit answers
+```{r}
+Answer<-subset(testing,select=c(problem_id:Prediction))
+Answer
+```
+
+
+
+
